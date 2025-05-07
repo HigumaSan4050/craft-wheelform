@@ -17,6 +17,8 @@ class Mailer extends Component
     const EVENT_BEFORE_SEND = 'beforeSend';
     const EVENT_AFTER_SEND = 'afterSend';
 
+    const EVENT_BEFORE_NOTIFICATION_SEND = 'beforeNotificationSend';
+
     protected $defaultTemplate = 'wheelform/_emails/general.twig';
     protected $notificationTemplate = 'wheelform/_emails/notification.twig';
 
@@ -228,12 +230,25 @@ class Mailer extends Component
 
                 $notificationHtml = $this->getNotificationHtml($beforeEvent->message, $notificationText);
 
+                $beforeNotificationEvent = new SendEvent([
+                    'form_id' => $this->form->id,
+                    'subject' => $notificationSubject,
+                    'from' => $beforeEvent->from,
+                    'reply_to' => $beforeEvent->to,
+                ]);
+                $this->trigger(self::EVENT_BEFORE_NOTIFICATION_SEND, $beforeNotificationEvent);
+
                 $userNotification = new MailMessage();
-                $userNotification->setFrom($afterEvent->from);
-                $userNotification->setSubject($notificationSubject);
+                $userNotification->setFrom($beforeNotificationEvent->from);
+                $userNotification->setSubject($beforeNotificationEvent->subject);
                 $userNotification->setTextBody($notificationText);
                 $userNotification->setHtmlBody($notificationHtml);
                 $userNotification->setTo($notificationTo);
+
+                if(! empty($beforeNotificationEvent->reply_to)) {
+                    $userNotification->setReplyTo($beforeNotificationEvent->reply_to);
+                }
+
                 $mailer->send($userNotification);
             }
         }
